@@ -25,11 +25,27 @@ const { uploadDir } = require('./middlewares/uploadMiddleware');
 
 // Ensure DB is connected in serverless (Vercel) environments before processing requests
 app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState < 1 && process.env.MONGO_URI) {
+  // Allow root, health check, and static files to serve without requiring DB
+  if (req.path === '/' || req.path === '/health' || req.path.startsWith('/uploads')) {
+    return next();
+  }
+
+  if (mongoose.connection.readyState < 1) {
+    if (!process.env.MONGO_URI) {
+      return res.status(503).json({
+        success: false,
+        message: 'MONGO_URI environment variable is missing in Vercel Project Settings.',
+      });
+    }
+
     try {
       await connectDB();
     } catch (err) {
-      console.error('[DB Middleware] Auto-connect error:', err.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection failed. Please ensure MongoDB Atlas Network Access has 0.0.0.0/0 (Allow access from anywhere) enabled.',
+        error: err.message,
+      });
     }
   }
   next();
