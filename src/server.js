@@ -22,13 +22,26 @@ const startServer = async () => {
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (err) => {
       console.error(`Unhandled Rejection Error: ${err.message}`);
-      // Close server & exit process
-      server.close(() => process.exit(1));
+      if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        server.close(() => process.exit(1));
+      }
     });
   } catch (error) {
     console.error(`Failed to start server: ${error.message}`);
-    process.exit(1);
+    if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      process.exit(1);
+    }
   }
 };
 
-startServer();
+// If in serverless (Vercel), connect DB on function container start
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  connectDB()
+    .then(() => seedInitialData())
+    .catch((err) => console.error('[Vercel Boot] Init error:', err.message));
+} else {
+  // Standalone server mode
+  startServer();
+}
+
+module.exports = app;

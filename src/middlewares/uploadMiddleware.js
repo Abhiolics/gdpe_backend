@@ -1,17 +1,44 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Detect serverless environment (Vercel, AWS Lambda, etc.)
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+// On serverless, the local directory (/var/task) is read-only. We must use os.tmpdir() (/tmp).
+let uploadDir = isServerless
+  ? path.join(os.tmpdir(), 'gdpe_uploads')
+  : path.join(__dirname, '../../uploads');
+
+// Ensure upload directory exists safely without crashing on read-only environments
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  // If creating local directory fails (e.g. read-only filesystem), fallback to os.tmpdir()
+  uploadDir = path.join(os.tmpdir(), 'gdpe_uploads');
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+  } catch (tmpErr) {
+    console.warn('[Upload] Failed to create tmp upload directory:', tmpErr.message);
+  }
 }
 
 // Storage engine configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir);
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (e) {
+      cb(null, os.tmpdir());
+    }
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -44,5 +71,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: fileFilter,
 });
+
+upload.uploadDir = uploadDir;
 
 module.exports = upload;
