@@ -116,6 +116,19 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    const adminEmail = (
+      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+    ).toLowerCase();
+
+    // Enforce OTP-only login for administrator
+    if (user.role === 'admin' || user.email.toLowerCase() === adminEmail) {
+      return res.status(403).json({
+        success: false,
+        message:
+          'Admin login is strictly OTP-based. Password login is disabled for administrators. Please login using OTP.',
+      });
+    }
+
     const token = user.getSignedJwtToken();
 
     res.status(200).json({
@@ -139,7 +152,10 @@ exports.login = async (req, res, next) => {
 // @access  Public
 exports.sendOtp = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const { email, isAdmin } = req.body;
+    const adminEmail = (
+      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+    ).toLowerCase();
 
     if (!email) {
       return res.status(400).json({
@@ -148,27 +164,42 @@ exports.sendOtp = async (req, res, next) => {
       });
     }
 
-    let user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = email.toLowerCase().trim();
+
+    // If caller specifies admin access or endpoint is admin-specific, verify it matches the designated admin email
+    if (isAdmin && cleanEmail !== adminEmail) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Only ${adminEmail} is authorized for administrator access.`,
+      });
+    }
+
+    let user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account found with this email address',
+      });
+    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    if (user) {
-      user.otp = otp;
-      user.otpExpires = otpExpires;
-      await user.save({ validateBeforeSave: false });
-    }
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    await user.save({ validateBeforeSave: false });
 
     // Send real email via ZeptoMail (or log to console if token not configured)
-    await sendOtpEmail(email, otp).catch((err) =>
+    await sendOtpEmail(cleanEmail, otp).catch((err) =>
       console.error('[ZeptoMail] Error sending OTP email:', err.message)
     );
 
     res.status(200).json({
       success: true,
       message: 'OTP sent successfully to email',
-      otp: otp, // Returned for easy testing with Postman as well
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined,
     });
   } catch (error) {
     next(error);
@@ -181,6 +212,9 @@ exports.sendOtp = async (req, res, next) => {
 exports.verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
+    const adminEmail = (
+      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+    ).toLowerCase();
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -189,14 +223,24 @@ exports.verifyOtp = async (req, res, next) => {
       });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: cleanEmail,
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found with this email',
+      });
+    }
+
+    // If user has admin role, ensure email strictly matches authorized admin email
+    if (user.role === 'admin' && cleanEmail !== adminEmail) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied: Only ${adminEmail} is authorized for administrator access.`,
       });
     }
 
@@ -232,6 +276,139 @@ exports.verifyOtp = async (req, res, next) => {
         fullName: user.fullName,
         email: user.email,
         role: user.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Admin Send OTP (Strictly for audacious.here@gmail.com)
+// @route   POST /api/admin/send-otp or /api/auth/admin/send-otp
+// @access  Public
+exports.adminSendOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const adminEmail = (
+      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+    ).toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide administrator email',
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (cleanEmail !== adminEmail) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Only ${adminEmail} is authorized for administrator access.`,
+      });
+    }
+
+    let user = await User.findOne({ email: adminEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Administrator account not found in database',
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+    user.role = 'admin';
+    await user.save({ validateBeforeSave: false });
+
+    // Send real email via ZeptoMail
+    await sendOtpEmail(adminEmail, otp).catch((err) =>
+      console.error('[ZeptoMail] Error sending Admin OTP email:', err.message)
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Admin verification OTP sent to ${adminEmail}`,
+      otp: process.env.NODE_ENV === 'development' ? otp : undefined,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Admin Verify OTP & Login
+// @route   POST /api/admin/verify-otp or /api/auth/admin/verify-otp
+// @access  Public
+exports.adminVerifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const adminEmail = (
+      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+    ).toLowerCase();
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide administrator email and OTP code',
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (cleanEmail !== adminEmail) {
+      return res.status(403).json({
+        success: false,
+        message: `Access denied. Only ${adminEmail} is authorized for administrator access.`,
+      });
+    }
+
+    const user = await User.findOne({ email: adminEmail });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Administrator account not found',
+      });
+    }
+
+    if (user.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP code',
+      });
+    }
+
+    if (user.otpExpires && user.otpExpires < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP code has expired. Please request a new one.',
+      });
+    }
+
+    // Clear OTP and ensure active admin
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    user.role = 'admin';
+    user.isEmailVerified = true;
+    user.isActive = true;
+    user.isBlocked = false;
+    await user.save({ validateBeforeSave: false });
+
+    const token = user.getSignedJwtToken();
+
+    res.status(200).json({
+      success: true,
+      message: 'Admin authentication successful',
+      token,
+      data: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: 'admin',
       },
     });
   } catch (error) {

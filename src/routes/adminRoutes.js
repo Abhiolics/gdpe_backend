@@ -22,9 +22,14 @@ const {
   deleteContact,
 } = require('../controllers/contactController');
 const { togglePlan } = require('../controllers/planController');
+const { adminSendOtp, adminVerifyOtp } = require('../controllers/authController');
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
-// All routes in this router require Admin authorization
+// Public Admin Authentication Routes (OTP based only)
+router.post('/send-otp', adminSendOtp);
+router.post('/verify-otp', adminVerifyOtp);
+
+// All routes below require Admin authorization
 router.use(protect, isAdmin);
 
 // Dashboard

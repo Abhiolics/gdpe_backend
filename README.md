@@ -19,7 +19,7 @@ NODE_ENV=development
 MONGO_URI=mongodb+srv://audacioushere_db_user:sSRBKlWmMbPqI7ck@cluster0.4wdlay9.mongodb.net/gdpe_backend?retryWrites=true&w=majority&appName=Cluster0
 JWT_SECRET=gdpe_super_secret_jwt_key_2026_x89f
 JWT_EXPIRE=30d
-ADMIN_EMAIL=admin@example.com
+ADMIN_EMAIL=audacious.here@gmail.com
 ADMIN_PASSWORD=Admin@123
 ADMIN_NAME=Super Admin
 ADMIN_PHONE=9999999999
@@ -52,8 +52,8 @@ npm test
 ---
 
 ## 🔑 Default Admin Account
-The backend automatically creates this admin user on startup if not already present:
-- **Email**: `admin@example.com`
+The backend automatically creates this admin user on startup if not already present (strictly exclusive for admin access):
+- **Email**: `audacious.here@gmail.com`
 - **Password**: `Admin@123`
 - **Role**: `admin`
 

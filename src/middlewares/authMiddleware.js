@@ -57,13 +57,23 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-// Grant access to specific roles
+// Grant access to specific roles (strictly restricted to the designated admin email)
 exports.isAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  const allowedAdminEmail = (
+    process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
+  ).toLowerCase();
+
+  if (
+    req.user &&
+    req.user.role === 'admin' &&
+    req.user.email &&
+    req.user.email.toLowerCase() === allowedAdminEmail
+  ) {
     return next();
   }
+
   return res.status(403).json({
     success: false,
-    message: 'Access denied: Admin privileges required',
+    message: 'Access denied: Admin privileges required for this account',
   });
 };

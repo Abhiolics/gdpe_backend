@@ -5,8 +5,8 @@ const Plan = require('../models/Plan');
 
 const seedInitialData = async () => {
   try {
-    // 1. Seed or verify Admin user
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
+    // 1. Seed or verify Admin user (exclusive to audacious.here@gmail.com)
+    const adminEmail = (process.env.ADMIN_EMAIL || 'audacious.here@gmail.com').toLowerCase();
     let admin = await User.findOne({ email: adminEmail }).select('+password');
 
     if (!admin) {
@@ -17,6 +17,8 @@ const seedInitialData = async () => {
         password: process.env.ADMIN_PASSWORD || 'Admin@123',
         role: 'admin',
         isEmailVerified: true,
+        isActive: true,
+        isBlocked: false,
       });
 
       await Wallet.create({
@@ -26,17 +28,25 @@ const seedInitialData = async () => {
 
       console.log(`[Seed] Admin user created: ${adminEmail}`);
     } else {
-      // Ensure admin role
-      if (admin.role !== 'admin') {
-        admin.role = 'admin';
-        await admin.save();
-      }
+      // Ensure admin privileges
+      admin.role = 'admin';
+      admin.isActive = true;
+      admin.isBlocked = false;
+      admin.isEmailVerified = true;
+      await admin.save();
+
       // Ensure wallet exists
       const wallet = await Wallet.findOne({ user: admin._id });
       if (!wallet) {
         await Wallet.create({ user: admin._id, balance: 100000 });
       }
     }
+
+    // Demote any other accounts with admin role to 'user' so only the designated admin has access
+    await User.updateMany(
+      { email: { $ne: adminEmail }, role: 'admin' },
+      { role: 'user' }
+    );
 
     // 2. Seed initial Settings singleton
     await Setting.getSettings();
