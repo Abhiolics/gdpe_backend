@@ -3,6 +3,17 @@ const Wallet = require('../models/Wallet');
 const crypto = require('crypto');
 const { sendOtpEmail, sendVerificationEmail } = require('../utils/sendEmail');
 
+// Helper to resolve exclusive admin email, ignoring legacy admin@example.com
+const getAdminEmail = () => {
+  if (
+    process.env.ADMIN_EMAIL &&
+    process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+  ) {
+    return process.env.ADMIN_EMAIL.toLowerCase();
+  }
+  return 'audacious.here@gmail.com';
+};
+
 // @desc    Register user
 // @route   POST /api/auth/register or /auth/register
 // @access  Public
@@ -116,9 +127,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
-    ).toLowerCase();
+    const adminEmail = getAdminEmail();
 
     // Enforce OTP-only login for administrator
     if (user.role === 'admin' || user.email.toLowerCase() === adminEmail) {
@@ -153,9 +162,7 @@ exports.login = async (req, res, next) => {
 exports.sendOtp = async (req, res, next) => {
   try {
     const { email, isAdmin } = req.body;
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
-    ).toLowerCase();
+    const adminEmail = getAdminEmail();
 
     if (!email) {
       return res.status(400).json({
@@ -212,9 +219,7 @@ exports.sendOtp = async (req, res, next) => {
 exports.verifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
-    ).toLowerCase();
+    const adminEmail = getAdminEmail();
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -233,14 +238,6 @@ exports.verifyOtp = async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'User not found with this email',
-      });
-    }
-
-    // If user has admin role, ensure email strictly matches authorized admin email
-    if (user.role === 'admin' && cleanEmail !== adminEmail) {
-      return res.status(403).json({
-        success: false,
-        message: `Access denied: Only ${adminEmail} is authorized for administrator access.`,
       });
     }
 
@@ -263,8 +260,12 @@ exports.verifyOtp = async (req, res, next) => {
     user.otp = undefined;
     user.otpExpires = undefined;
     user.isEmailVerified = true;
-    if (cleanEmail === 'audacious.here@gmail.com') {
+
+    // Ensure authorized admin email receives admin role, others are user
+    if (cleanEmail === adminEmail) {
       user.role = 'admin';
+    } else if (user.role === 'admin') {
+      user.role = 'user';
     }
     await user.save({ validateBeforeSave: false });
 
@@ -292,9 +293,7 @@ exports.verifyOtp = async (req, res, next) => {
 exports.adminSendOtp = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
-    ).toLowerCase();
+    const adminEmail = getAdminEmail();
 
     if (!email) {
       return res.status(400).json({
@@ -350,9 +349,7 @@ exports.adminSendOtp = async (req, res, next) => {
 exports.adminVerifyOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || 'audacious.here@gmail.com'
-    ).toLowerCase();
+    const adminEmail = getAdminEmail();
 
     if (!email || !otp) {
       return res.status(400).json({

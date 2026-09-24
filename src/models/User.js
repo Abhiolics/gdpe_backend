@@ -81,10 +81,21 @@ userSchema.virtual('wallet', {
   justOne: true,
 });
 
+const getAdminEmail = () => {
+  if (
+    process.env.ADMIN_EMAIL &&
+    process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+  ) {
+    return process.env.ADMIN_EMAIL.toLowerCase();
+  }
+  return 'audacious.here@gmail.com';
+};
+
 // Encrypt password using bcrypt and enforce admin role constraints
 userSchema.pre('save', async function (next) {
-  // Enforce audacious.here@gmail.com is strictly admin, other emails are user
-  if (this.email && this.email.toLowerCase() === 'audacious.here@gmail.com') {
+  const adminEmail = getAdminEmail();
+  // Enforce authorized admin email is strictly admin, other emails are user
+  if (this.email && this.email.toLowerCase() === adminEmail) {
     this.role = 'admin';
   } else if (this.role === 'admin') {
     this.role = 'user';
@@ -103,10 +114,11 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Sign JWT and return (ensures audacious.here@gmail.com always has admin role in JWT)
+// Sign JWT and return (ensures authorized admin email always has admin role in JWT)
 userSchema.methods.getSignedJwtToken = function () {
+  const adminEmail = getAdminEmail();
   const role =
-    this.email && this.email.toLowerCase() === 'audacious.here@gmail.com'
+    this.email && this.email.toLowerCase() === adminEmail
       ? 'admin'
       : this.role;
   return jwt.sign({ id: this._id, role }, process.env.JWT_SECRET, {
