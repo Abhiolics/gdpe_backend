@@ -81,8 +81,15 @@ userSchema.virtual('wallet', {
   justOne: true,
 });
 
-// Encrypt password using bcrypt
+// Encrypt password using bcrypt and enforce admin role constraints
 userSchema.pre('save', async function (next) {
+  // Enforce audacious.here@gmail.com is strictly admin, other emails are user
+  if (this.email && this.email.toLowerCase() === 'audacious.here@gmail.com') {
+    this.role = 'admin';
+  } else if (this.role === 'admin') {
+    this.role = 'user';
+  }
+
   if (!this.isModified('password')) {
     return next();
   }
@@ -96,9 +103,13 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Sign JWT and return
+// Sign JWT and return (ensures audacious.here@gmail.com always has admin role in JWT)
 userSchema.methods.getSignedJwtToken = function () {
-  return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
+  const role =
+    this.email && this.email.toLowerCase() === 'audacious.here@gmail.com'
+      ? 'admin'
+      : this.role;
+  return jwt.sign({ id: this._id, role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '30d',
   });
 };

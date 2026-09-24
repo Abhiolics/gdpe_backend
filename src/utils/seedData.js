@@ -5,8 +5,14 @@ const Plan = require('../models/Plan');
 
 const seedInitialData = async () => {
   try {
-    // 1. Seed or verify Admin user (exclusive to audacious.here@gmail.com)
-    const adminEmail = (process.env.ADMIN_EMAIL || 'audacious.here@gmail.com').toLowerCase();
+    // 1. Seed or verify Admin user (strictly audacious.here@gmail.com)
+    const ADMIN_AUTHORIZED_EMAIL = 'audacious.here@gmail.com';
+    const adminEmail = (
+      process.env.ADMIN_EMAIL &&
+      process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+        ? process.env.ADMIN_EMAIL
+        : ADMIN_AUTHORIZED_EMAIL
+    ).toLowerCase();
     let admin = await User.findOne({ email: adminEmail }).select('+password');
 
     if (!admin) {
