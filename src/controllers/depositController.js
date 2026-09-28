@@ -23,7 +23,8 @@ exports.createDeposit = async (req, res, next) => {
       });
     }
 
-    const proofUrl = `/uploads/${req.file.filename}`;
+    // Cloudinary returns the full public URL in req.file.path
+    const proofUrl = req.file.path;
 
     const deposit = await Deposit.create({
       user: req.user.id,

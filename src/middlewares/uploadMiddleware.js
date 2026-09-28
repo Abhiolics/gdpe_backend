@@ -1,68 +1,31 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 
-// Detect serverless environment (Vercel, AWS Lambda, etc.)
-const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+// Configure Cloudinary with credentials from env
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-// On serverless, the local directory (/var/task) is read-only. We must use os.tmpdir() (/tmp).
-let uploadDir = isServerless
-  ? path.join(os.tmpdir(), 'gdpe_uploads')
-  : path.join(__dirname, '../../uploads');
-
-// Ensure upload directory exists safely without crashing on read-only environments
-try {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-} catch (err) {
-  // If creating local directory fails (e.g. read-only filesystem), fallback to os.tmpdir()
-  uploadDir = path.join(os.tmpdir(), 'gdpe_uploads');
-  try {
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-  } catch (tmpErr) {
-    console.warn('[Upload] Failed to create tmp upload directory:', tmpErr.message);
-  }
-}
-
-// Storage engine configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      cb(null, uploadDir);
-    } catch (e) {
-      cb(null, os.tmpdir());
-    }
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+// Cloudinary storage engine — images go to "gdpe/deposits" folder
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'gdpe/deposits',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+    resource_type: 'auto', // supports both images and PDF
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
   },
 });
 
-// File filter
+// File filter — only allow images and PDFs
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = /jpeg|jpg|png|webp|pdf/;
-  const extname = allowedExtensions.test(
-    path.extname(file.originalname).toLowerCase()
-  );
-  const mimetype = allowedExtensions.test(file.mimetype);
-
-  if (extname && mimetype) {
-    return cb(null, true);
+  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    cb(null, true);
   } else {
-    // If not matching strict image mime, still allow common screenshot uploads
-    if (file.mimetype.startsWith('image/')) {
-      return cb(null, true);
-    }
-    cb(new Error('Only images and PDF documents are allowed!'));
+    cb(new Error('Only images (JPG, PNG, WEBP) and PDF documents are allowed!'), false);
   }
 };
 
@@ -72,6 +35,7 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-upload.uploadDir = uploadDir;
+// Export configured cloudinary instance for use elsewhere if needed
+upload.cloudinary = cloudinary;
 
 module.exports = upload;
