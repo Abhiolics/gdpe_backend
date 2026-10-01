@@ -11,7 +11,7 @@ const getAdminEmail = () => {
   ) {
     return process.env.ADMIN_EMAIL.toLowerCase();
   }
-  return 'audacious.here@gmail.com';
+  return 'keralawins123@gmail.com ';
 };
 
 // @desc    Register user
@@ -287,7 +287,7 @@ exports.verifyOtp = async (req, res, next) => {
   }
 };
 
-// @desc    Admin Send OTP (Strictly for audacious.here@gmail.com)
+// @desc    Admin Send OTP (Strictly for keralawins123@gmail.com )
 // @route   POST /api/admin/send-otp or /api/auth/admin/send-otp
 // @access  Public
 exports.adminSendOtp = async (req, res, next) => {
@@ -433,7 +433,7 @@ exports.getMe = async (req, res, next) => {
         phoneNumber: user.phoneNumber,
         role:
           user.email &&
-          user.email.toLowerCase() === 'audacious.here@gmail.com'
+            user.email.toLowerCase() === 'keralawins123@gmail.com '
             ? 'admin'
             : user.role,
         isBlocked: user.isBlocked,
@@ -442,9 +442,9 @@ exports.getMe = async (req, res, next) => {
         plan: user.plan,
         wallet: wallet
           ? {
-              balance: wallet.balance,
-              pendingBalance: wallet.pendingBalance,
-            }
+            balance: wallet.balance,
+            pendingBalance: wallet.pendingBalance,
+          }
           : { balance: 0, pendingBalance: 0 },
         createdAt: user.createdAt,
       },

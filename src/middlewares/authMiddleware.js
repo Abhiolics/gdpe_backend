@@ -64,7 +64,7 @@ const getAdminEmail = () => {
   ) {
     return process.env.ADMIN_EMAIL.toLowerCase();
   }
-  return 'audacious.here@gmail.com';
+  return 'keralawins123@gmail.com ';
 };
 
 // Grant access to specific roles (strictly restricted to the designated admin email)
