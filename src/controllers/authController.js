@@ -7,11 +7,11 @@ const { sendOtpEmail, sendVerificationEmail } = require('../utils/sendEmail');
 const getAdminEmail = () => {
   if (
     process.env.ADMIN_EMAIL &&
-    process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+    process.env.ADMIN_EMAIL.trim().toLowerCase() !== 'admin@example.com'
   ) {
-    return process.env.ADMIN_EMAIL.toLowerCase();
+    return process.env.ADMIN_EMAIL.trim().toLowerCase();
   }
-  return 'keralawins123@gmail.com ';
+  return 'keralawins123@gmail.com';
 };
 
 // @desc    Register user
@@ -130,7 +130,7 @@ exports.login = async (req, res, next) => {
     const adminEmail = getAdminEmail();
 
     // Enforce OTP-only login for administrator
-    if (user.role === 'admin' || user.email.toLowerCase() === adminEmail) {
+    if (user.role === 'admin' || user.email.toLowerCase().trim() === adminEmail) {
       return res.status(403).json({
         success: false,
         message:
@@ -287,7 +287,7 @@ exports.verifyOtp = async (req, res, next) => {
   }
 };
 
-// @desc    Admin Send OTP (Strictly for keralawins123@gmail.com )
+// @desc    Admin Send OTP (Strictly for keralawins123@gmail.com)
 // @route   POST /api/admin/send-otp or /api/auth/admin/send-otp
 // @access  Public
 exports.adminSendOtp = async (req, res, next) => {
@@ -433,7 +433,7 @@ exports.getMe = async (req, res, next) => {
         phoneNumber: user.phoneNumber,
         role:
           user.email &&
-            user.email.toLowerCase() === 'keralawins123@gmail.com '
+          user.email.toLowerCase().trim() === getAdminEmail()
             ? 'admin'
             : user.role,
         isBlocked: user.isBlocked,

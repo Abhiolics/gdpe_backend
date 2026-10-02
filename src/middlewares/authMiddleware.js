@@ -60,11 +60,11 @@ exports.protect = async (req, res, next) => {
 const getAdminEmail = () => {
   if (
     process.env.ADMIN_EMAIL &&
-    process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+    process.env.ADMIN_EMAIL.trim().toLowerCase() !== 'admin@example.com'
   ) {
-    return process.env.ADMIN_EMAIL.toLowerCase();
+    return process.env.ADMIN_EMAIL.trim().toLowerCase();
   }
-  return 'keralawins123@gmail.com ';
+  return 'keralawins123@gmail.com';
 };
 
 // Grant access to specific roles (strictly restricted to the designated admin email)
@@ -74,7 +74,7 @@ exports.isAdmin = (req, res, next) => {
   if (
     req.user &&
     req.user.email &&
-    req.user.email.toLowerCase() === allowedAdminEmail
+    req.user.email.toLowerCase().trim() === allowedAdminEmail
   ) {
     req.user.role = 'admin';
     return next();

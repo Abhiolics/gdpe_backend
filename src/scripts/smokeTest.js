@@ -76,7 +76,7 @@ const runSmokeTest = async () => {
         headers: { 'Content-Type': 'application/json' },
       },
       {
-        email: process.env.ADMIN_EMAIL || 'keralawins123@gmail.com ',
+        email: (process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL.trim()) || 'keralawins123@gmail.com',
         password: process.env.ADMIN_PASSWORD || 'Admin@123',
       }
     );

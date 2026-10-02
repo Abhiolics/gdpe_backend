@@ -168,14 +168,14 @@ These endpoints are strictly for the **Admin Dashboard** to manage users, approv
 ### 0. Admin Authentication (Strictly OTP-Based, No Password)
 | Method | Endpoint | Description | Payload / Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/admin/send-otp` (or `/api/auth/admin/send-otp`) | Request 6-digit OTP sent to administrator email. Strictly rejects any email other than `keralawins123@gmail.com `. | `{ "email": "keralawins123@gmail.com " }` |
-| `POST` | `/api/admin/verify-otp` (or `/api/auth/admin/verify-otp`) | Verify 6-digit OTP and receive Admin JWT token with `role: "admin"` | `{ "email": "keralawins123@gmail.com ", "otp": "123456" }` |
+| `POST` | `/api/admin/send-otp` (or `/api/auth/admin/send-otp`) | Request 6-digit OTP sent to administrator email. Strictly rejects any email other than `keralawins123@gmail.com`. | `{ "email": "keralawins123@gmail.com" }` |
+| `POST` | `/api/admin/verify-otp` (or `/api/auth/admin/verify-otp`) | Verify 6-digit OTP and receive Admin JWT token with `role: "admin"` | `{ "email": "keralawins123@gmail.com", "otp": "123456" }` |
 
 ---
 
 ## 🔒 Security Note on Admin Login
-- **No Password Option for Admin:** The password login endpoint `POST /api/auth/login` is explicitly disabled for administrators. If `keralawins123@gmail.com ` attempts password login, the backend responds with `403 Forbidden` (`Admin login is strictly OTP-based. Password login is disabled for administrators`).
-- **Exclusive Authorized Email:** Only `keralawins123@gmail.com ` can request admin OTPs and receive admin tokens. Any other email is rejected with `403 Forbidden`.
+- **No Password Option for Admin:** The password login endpoint `POST /api/auth/login` is explicitly disabled for administrators. If `keralawins123@gmail.com` attempts password login, the backend responds with `403 Forbidden` (`Admin login is strictly OTP-based. Password login is disabled for administrators`).
+- **Exclusive Authorized Email:** Only `keralawins123@gmail.com` can request admin OTPs and receive admin tokens. Any other email is rejected with `403 Forbidden`.
 
 ---
 

@@ -84,18 +84,18 @@ userSchema.virtual('wallet', {
 const getAdminEmail = () => {
   if (
     process.env.ADMIN_EMAIL &&
-    process.env.ADMIN_EMAIL.toLowerCase() !== 'admin@example.com'
+    process.env.ADMIN_EMAIL.trim().toLowerCase() !== 'admin@example.com'
   ) {
-    return process.env.ADMIN_EMAIL.toLowerCase();
+    return process.env.ADMIN_EMAIL.trim().toLowerCase();
   }
-  return 'keralawins123@gmail.com ';
+  return 'keralawins123@gmail.com';
 };
 
 // Encrypt password using bcrypt and enforce admin role constraints
 userSchema.pre('save', async function (next) {
   const adminEmail = getAdminEmail();
   // Enforce authorized admin email is strictly admin, other emails are user
-  if (this.email && this.email.toLowerCase() === adminEmail) {
+  if (this.email && this.email.toLowerCase().trim() === adminEmail) {
     this.role = 'admin';
   } else if (this.role === 'admin') {
     this.role = 'user';
@@ -118,7 +118,7 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 userSchema.methods.getSignedJwtToken = function () {
   const adminEmail = getAdminEmail();
   const role =
-    this.email && this.email.toLowerCase() === adminEmail
+    this.email && this.email.toLowerCase().trim() === adminEmail
       ? 'admin'
       : this.role;
   return jwt.sign({ id: this._id, role }, process.env.JWT_SECRET, {
