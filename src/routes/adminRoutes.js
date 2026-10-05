@@ -21,6 +21,13 @@ const {
   updateContact,
   deleteContact,
 } = require('../controllers/contactController');
+const {
+  getPaymentMethodsAdmin,
+  addPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
+  enablePaymentMethod,
+} = require('../controllers/paymentMethodController');
 const { togglePlan } = require('../controllers/planController');
 const { adminSendOtp, adminVerifyOtp } = require('../controllers/authController');
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
@@ -48,6 +55,13 @@ router.get('/settings', getAdminSettings);
 router.put('/settings/maintenance', updateMaintenance);
 router.put('/settings/update-control', updateControl);
 router.put('/settings/payment', updatePaymentMethods);
+
+// Payment Methods Management (Direct Admin Aliases)
+router.get('/payment-methods', getPaymentMethodsAdmin);
+router.post('/payment-methods', addPaymentMethod);
+router.put('/payment-methods/enable', enablePaymentMethod);
+router.put('/payment-methods/:id', updatePaymentMethod);
+router.delete('/payment-methods/:id', deletePaymentMethod);
 
 // Support Contacts
 router.get('/contacts', getAllContactsAdmin);

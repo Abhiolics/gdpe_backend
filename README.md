@@ -146,14 +146,21 @@ To run your existing Postman collection, set your Postman Environment Variables:
 - `PATCH /read-all`: Mark all notifications as read
 - `PATCH /:id/read`: Mark single notification as read
 
-### 10. App Settings & Contacts
+### 10. App Settings & Payment Methods
 - `GET /api/app/settings`: Public system settings (maintenance mode, force update, app version)
 - `GET /api/payment-methods`: Public active QR code and bank account information
+- `GET /api/payment/payment-methods`: Public active payment methods
+- `GET /api/payment/admin/payment-methods`: Admin fetch configured payment methods
+- `POST /api/payment/admin/payment-methods`: Admin add UPI ID or Bank account
+- `PUT /api/payment/admin/payment-methods/:id`: Admin update payment method
+- `DELETE /api/payment/admin/payment-methods/:id`: Admin delete payment method
+- `PUT /api/payment/admin/payment-methods/enable`: Admin toggle global UPI or Bank status
+- `GET /api/upi/admin/all`: Admin query all user UPI records
 - `GET /api/contacts`: Public active support contacts (WhatsApp, Telegram, Help Desk)
 - `GET /api/admin/settings`: Admin settings management
 - `PUT /api/admin/settings/maintenance`: Admin updates maintenance status
 - `PUT /api/admin/settings/update-control`: Admin updates app version and force-update
-- `PUT /api/admin/settings/payment`: Admin updates QR code image and bank account details
+- `PUT /api/admin/settings/payment`: Admin updates legacy QR code and bank details
 - `POST /api/admin/contacts`: Admin creates contact
 - `PUT /api/admin/contacts/:id`: Admin updates contact
 - `DELETE /api/admin/contacts/:id`: Admin deletes contact

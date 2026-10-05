@@ -10,7 +10,9 @@ const withdrawalRoutes = require('./withdrawalRoutes');
 const taskRoutes = require('./taskRoutes');
 const walletRoutes = require('./walletRoutes');
 const notificationRoutes = require('./notificationRoutes');
-const { getPublicSettings, getPaymentMethods } = require('../controllers/settingController');
+const paymentMethodRoutes = require('./paymentMethodRoutes');
+const upiRoutes = require('./upiRoutes');
+const { getPublicSettings } = require('../controllers/settingController');
 const { getContacts } = require('../controllers/contactController');
 
 // Mount sub-routers
@@ -23,10 +25,12 @@ router.use('/withdrawals', withdrawalRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/payment', paymentMethodRoutes);
+router.use('/payment-methods', paymentMethodRoutes);
+router.use('/upi', upiRoutes);
 
 // Public app endpoints from settings folder
 router.get('/app/settings', getPublicSettings);
-router.get('/payment-methods', getPaymentMethods);
 router.get('/contacts', getContacts);
 
 module.exports = router;
