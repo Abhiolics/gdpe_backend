@@ -148,7 +148,7 @@ These endpoints are strictly for the **Admin Dashboard** to manage users, approv
 ### 7. Manual Wallet Adjustments
 | Method | Endpoint | Description | Payload / Parameters |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/wallet/admin/adjust` | Manually credit or debit a user's wallet with custom audit reason | Body: `{ "userId": "<id>", "amount": 500, "type": "credit" \| "debit", "description": "Bonus" }` |
+| `POST` | `/api/wallet/admin/adjust` | Manually credit or debit a user's wallet with custom audit reason (debit adjustments automatically create an approved withdrawal record so it reflects in Total Withdrawals) | Body: `{ "userId": "<id>", "amount": 500, "type": "credit" \| "debit", "description": "Bonus" }` |
 
 ### 8. System Settings & Payment Methods Configuration
 | Method | Endpoint | Description | Payload / Parameters |

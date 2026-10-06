@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
 const Upi = require('../models/Upi');
+const Withdrawal = require('../models/Withdrawal');
 const crypto = require('crypto');
 const { sendOtpEmail, sendVerificationEmail } = require('../utils/sendEmail');
 
@@ -427,6 +428,12 @@ exports.getMe = async (req, res, next) => {
     const upis = await Upi.find({ userId: req.user.id }).sort({ isPrimary: -1, createdAt: -1 });
     const primaryUpi = upis.find((u) => u.isPrimary) || upis[0] || null;
 
+    const approvedWithdrawals = await Withdrawal.aggregate([
+      { $match: { user: user._id, status: 'approved' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalWithdrawn = approvedWithdrawals[0]?.total || 0;
+
     res.status(200).json({
       success: true,
       data: {
@@ -447,8 +454,10 @@ exports.getMe = async (req, res, next) => {
           ? {
             balance: wallet.balance,
             pendingBalance: wallet.pendingBalance,
+            totalWithdrawn,
+            totalWithdrawal: totalWithdrawn,
           }
-          : { balance: 0, pendingBalance: 0 },
+          : { balance: 0, pendingBalance: 0, totalWithdrawn: 0, totalWithdrawal: 0 },
         upis,
         upi: primaryUpi,
         upiId: primaryUpi?.upiId || null,

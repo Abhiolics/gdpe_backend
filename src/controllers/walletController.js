@@ -1,6 +1,7 @@
 const Wallet = require('../models/Wallet');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
+const Withdrawal = require('../models/Withdrawal');
 const { adjustWalletBalance, pushNotification } = require('../utils/walletHelper');
 
 // @desc    Get user wallet
@@ -14,9 +15,38 @@ exports.getWallet = async (req, res, next) => {
       wallet = await Wallet.create({ user: req.user.id, balance: 0 });
     }
 
+    const approvedWithdrawals = await Withdrawal.aggregate([
+      { $match: { user: wallet.user, status: 'approved' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalWithdrawn = approvedWithdrawals[0]?.total || 0;
+
+    const debitedTransactions = await Transaction.aggregate([
+      { $match: { user: wallet.user, type: 'debit', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalDebited = debitedTransactions[0]?.total || 0;
+
+    const creditedTransactions = await Transaction.aggregate([
+      { $match: { user: wallet.user, type: 'credit', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const totalCredited = creditedTransactions[0]?.total || 0;
+
     res.status(200).json({
       success: true,
-      data: wallet,
+      data: {
+        _id: wallet._id,
+        user: wallet.user,
+        balance: wallet.balance,
+        pendingBalance: wallet.pendingBalance,
+        totalWithdrawn,
+        totalWithdrawal: totalWithdrawn,
+        totalDebited,
+        totalCredited,
+        createdAt: wallet.createdAt,
+        updatedAt: wallet.updatedAt,
+      },
     });
   } catch (error) {
     next(error);
@@ -78,12 +108,29 @@ exports.adminAdjustWallet = async (req, res, next) => {
       });
     }
 
+    let withdrawal = null;
+    if (type === 'debit') {
+      withdrawal = await Withdrawal.create({
+        user: userId,
+        amount: numericAmount,
+        status: 'approved',
+        reason: description || 'Admin adjustment debit',
+        bankDetails: {
+          accountHolderName: user.fullName || 'User',
+          upiId: (description && description.includes('@')) ? description : (user.phoneNumber || 'Admin Adjustment'),
+        },
+        reviewedBy: req.user?._id || null,
+        reviewedAt: new Date(),
+      });
+    }
+
     const { wallet, transaction } = await adjustWalletBalance({
       userId,
       amount: numericAmount,
       type,
-      category: 'admin_adjustment',
+      category: type === 'debit' ? 'withdrawal' : 'admin_adjustment',
       description: description || `Admin ${type} adjustment`,
+      referenceId: withdrawal ? withdrawal._id : null,
     });
 
     await pushNotification({
@@ -99,6 +146,7 @@ exports.adminAdjustWallet = async (req, res, next) => {
       data: {
         wallet,
         transaction,
+        withdrawal,
       },
     });
   } catch (error) {
