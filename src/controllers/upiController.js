@@ -24,22 +24,53 @@ exports.createUpi = async (req, res, next) => {
   try {
     const { upiId, accountHolderName, isPrimary } = req.body;
 
-    if (!upiId || !accountHolderName) {
+    const resolvedUpiId = (upiId || req.body.upi || req.body.upi_id || '').trim();
+    const resolvedHolderName = (
+      accountHolderName ||
+      req.body.name ||
+      req.body.payeeName ||
+      req.body.holderName ||
+      req.user?.fullName ||
+      'User Account'
+    ).trim();
+
+    if (!resolvedUpiId) {
       return res.status(400).json({
         success: false,
-        message: 'UPI ID and Account Holder Name are required',
+        message: 'UPI ID is required',
       });
     }
 
-    if (isPrimary) {
+    const existingCount = await Upi.countDocuments({ userId: req.user._id });
+    const makePrimary = existingCount === 0 ? true : Boolean(isPrimary);
+
+    if (makePrimary) {
       await Upi.updateMany({ userId: req.user._id }, { isPrimary: false });
     }
 
-    const upi = await Upi.create({
+    // Check if user already registered this exact UPI ID
+    let upi = await Upi.findOne({
       userId: req.user._id,
-      upiId: upiId.trim(),
-      accountHolderName: accountHolderName.trim(),
-      isPrimary: isPrimary || false,
+      upiId: { $regex: `^${resolvedUpiId}$`, $options: 'i' },
+    });
+
+    if (upi) {
+      upi.accountHolderName = resolvedHolderName;
+      if (makePrimary) upi.isPrimary = true;
+      await upi.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'UPI address updated successfully',
+        data: upi,
+      });
+    }
+
+    upi = await Upi.create({
+      userId: req.user._id,
+      upiId: resolvedUpiId,
+      accountHolderName: resolvedHolderName,
+      isPrimary: makePrimary,
     });
 
     res.status(201).json({

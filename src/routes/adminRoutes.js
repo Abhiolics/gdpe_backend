@@ -30,6 +30,7 @@ const {
 } = require('../controllers/paymentMethodController');
 const { togglePlan } = require('../controllers/planController');
 const { adminSendOtp, adminVerifyOtp } = require('../controllers/authController');
+const { getAllUpisAdmin } = require('../controllers/upiController');
 const { protect, isAdmin } = require('../middlewares/authMiddleware');
 
 // Public Admin Authentication Routes (OTP based only)
@@ -45,6 +46,7 @@ router.get('/dashboard', getDashboardStats);
 // User Management
 router.get('/users', getUsers);
 router.get('/users/:id', getUserDetails);
+router.get('/upis', getAllUpisAdmin);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/unblock', unblockUser);
 router.patch('/users/:id/activate', activateUser);

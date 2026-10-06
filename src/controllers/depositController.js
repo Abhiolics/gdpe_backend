@@ -1,6 +1,7 @@
 const Deposit = require('../models/Deposit');
 const User = require('../models/User');
 const { adjustWalletBalance, pushNotification } = require('../utils/walletHelper');
+const upload = require('../middlewares/uploadMiddleware');
 
 // @desc    Create Deposit (User)
 // @route   POST /api/deposits or /deposits
@@ -16,15 +17,31 @@ exports.createDeposit = async (req, res, next) => {
       });
     }
 
-    if (!req.file) {
+    let proofUrl = '';
+
+    if (req.file && req.file.path) {
+      proofUrl = req.file.path;
+    } else if (req.body.paymentProof) {
+      const paymentProofDirect = req.body.paymentProof;
+      if (typeof paymentProofDirect === 'string' && (paymentProofDirect.startsWith('data:') || paymentProofDirect.startsWith('http'))) {
+        if (paymentProofDirect.startsWith('http')) {
+          proofUrl = paymentProofDirect;
+        } else {
+          const uploadRes = await upload.cloudinary.uploader.upload(paymentProofDirect, {
+            folder: 'gdpe/deposits',
+            resource_type: 'auto',
+          });
+          proofUrl = uploadRes.secure_url || uploadRes.url;
+        }
+      }
+    }
+
+    if (!proofUrl) {
       return res.status(400).json({
         success: false,
         message: 'Please upload payment proof image',
       });
     }
-
-    // Cloudinary returns the full public URL in req.file.path
-    const proofUrl = req.file.path;
 
     const deposit = await Deposit.create({
       user: req.user.id,

@@ -58,7 +58,31 @@ exports.submitTaskProof = async (req, res, next) => {
       });
     }
 
-    if (!req.file) {
+    let proofUrl = '';
+
+    if (req.file && (req.file.path || req.file.secure_url)) {
+      proofUrl = req.file.path || req.file.secure_url;
+    } else if (req.file && req.file.filename) {
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'j1fnt9oc';
+      const clean = req.file.filename.replace(/^\/?(uploads\/)?/, '');
+      proofUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${clean}`;
+    } else if (req.body.proof) {
+      const proofDirect = req.body.proof;
+      if (typeof proofDirect === 'string') {
+        if (proofDirect.startsWith('http')) {
+          proofUrl = proofDirect;
+        } else if (proofDirect.startsWith('data:')) {
+          const upload = require('../middlewares/uploadMiddleware');
+          const uploadRes = await upload.cloudinary.uploader.upload(proofDirect, {
+            folder: 'gdpe/deposits',
+            resource_type: 'auto',
+          });
+          proofUrl = uploadRes.secure_url || uploadRes.url;
+        }
+      }
+    }
+
+    if (!proofUrl) {
       return res.status(400).json({
         success: false,
         message: 'Please upload task proof',
@@ -78,8 +102,6 @@ exports.submitTaskProof = async (req, res, next) => {
         message: `You already have a ${existingSubmission.status} submission for this task`,
       });
     }
-
-    const proofUrl = `/uploads/${req.file.filename}`;
 
     const submission = await TaskSubmission.create({
       task: taskId,

@@ -24,7 +24,17 @@ const upiSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// Virtual alias 'user' for backwards compatibility
+upiSchema.virtual('user', {
+  ref: 'User',
+  localField: 'userId',
+  foreignField: '_id',
+  justOne: true,
+});
 
 module.exports = mongoose.model('Upi', upiSchema);

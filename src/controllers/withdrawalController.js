@@ -1,4 +1,5 @@
 const Withdrawal = require('../models/Withdrawal');
+const Upi = require('../models/Upi');
 const { adjustWalletBalance, pushNotification } = require('../utils/walletHelper');
 
 // @desc    Create Withdrawal Request (User)
@@ -49,6 +50,30 @@ exports.createWithdrawal = async (req, res, next) => {
     // Update transaction referenceId
     walletAdjustment.transaction.referenceId = withdrawal._id;
     await walletAdjustment.transaction.save();
+
+    // Auto-register UPI if provided in withdrawal and not yet saved
+    if (bankDetails && bankDetails.upiId) {
+      try {
+        const trimmedUpi = bankDetails.upiId.trim();
+        if (trimmedUpi) {
+          const existingUpi = await Upi.findOne({
+            userId: req.user.id,
+            upiId: { $regex: `^${trimmedUpi}$`, $options: 'i' },
+          });
+          if (!existingUpi) {
+            const upiCount = await Upi.countDocuments({ userId: req.user.id });
+            await Upi.create({
+              userId: req.user.id,
+              upiId: trimmedUpi,
+              accountHolderName: bankDetails.accountHolderName || req.user.fullName || 'User Account',
+              isPrimary: upiCount === 0,
+            });
+          }
+        }
+      } catch (upiErr) {
+        // Silently catch to avoid blocking withdrawal creation
+      }
+    }
 
     await pushNotification({
       userId: req.user.id,

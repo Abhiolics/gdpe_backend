@@ -81,6 +81,38 @@ userSchema.virtual('wallet', {
   justOne: true,
 });
 
+// Virtual for registered UPI accounts
+userSchema.virtual('upis', {
+  ref: 'Upi',
+  localField: '_id',
+  foreignField: 'userId',
+});
+
+// Virtual getter for primary/active UPI object
+userSchema.virtual('upi').get(function () {
+  if (this.upis && Array.isArray(this.upis) && this.upis.length > 0) {
+    return this.upis.find((u) => u.isPrimary) || this.upis[0];
+  }
+  return null;
+});
+
+// Virtual getter for primary UPI ID string
+userSchema.virtual('upiId').get(function () {
+  if (this.upis && Array.isArray(this.upis) && this.upis.length > 0) {
+    const primary = this.upis.find((u) => u.isPrimary) || this.upis[0];
+    return primary ? primary.upiId : null;
+  }
+  return null;
+});
+
+// Virtual getter for all registered UPI ID strings
+userSchema.virtual('upiIds').get(function () {
+  if (this.upis && Array.isArray(this.upis) && this.upis.length > 0) {
+    return this.upis.map((u) => u.upiId).filter(Boolean);
+  }
+  return [];
+});
+
 const getAdminEmail = () => {
   if (
     process.env.ADMIN_EMAIL &&

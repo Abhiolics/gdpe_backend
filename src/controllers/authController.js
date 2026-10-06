@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Wallet = require('../models/Wallet');
+const Upi = require('../models/Upi');
 const crypto = require('crypto');
 const { sendOtpEmail, sendVerificationEmail } = require('../utils/sendEmail');
 
@@ -423,6 +424,8 @@ exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).populate('plan');
     const wallet = await Wallet.findOne({ user: req.user.id });
+    const upis = await Upi.find({ userId: req.user.id }).sort({ isPrimary: -1, createdAt: -1 });
+    const primaryUpi = upis.find((u) => u.isPrimary) || upis[0] || null;
 
     res.status(200).json({
       success: true,
@@ -446,6 +449,9 @@ exports.getMe = async (req, res, next) => {
             pendingBalance: wallet.pendingBalance,
           }
           : { balance: 0, pendingBalance: 0 },
+        upis,
+        upi: primaryUpi,
+        upiId: primaryUpi?.upiId || null,
         createdAt: user.createdAt,
       },
     });

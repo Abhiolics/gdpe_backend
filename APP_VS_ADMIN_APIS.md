@@ -93,8 +93,9 @@ These endpoints are strictly for the **Admin Dashboard** to manage users, approv
 | Method | Endpoint | Description | Payload / Parameters |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/admin/dashboard` | Aggregated metrics: total users, active users, blocked users, pending deposits/withdrawals, task submissions, total wallet balances | None |
-| `GET` | `/api/admin/users` | List users with pagination and search | Query params: `page`, `limit`, `search` |
-| `GET` | `/api/admin/users/:id` | View full details of a user including plan & wallet | URL parameter `id` |
+| `GET` | `/api/admin/users` | List users with pagination, search (by name, email, phone, or UPI ID), and populated registered UPI accounts (`upis`, `upi`, `upiId`) | Query params: `page`, `limit`, `search` |
+| `GET` | `/api/admin/users/:id` | View full details of a user including plan, wallet & registered UPIs | URL parameter `id` |
+| `GET` | `/api/admin/upis` | List all registered user UPI addresses (Admin alias) | None |
 | `PATCH` | `/api/admin/users/:id/block` | Block user account from logging in or making transactions | URL parameter `id` |
 | `PATCH` | `/api/admin/users/:id/unblock` | Unblock a previously blocked user account | URL parameter `id` |
 | `PATCH` | `/api/admin/users/:id/activate` | Mark user account as active | URL parameter `id` |

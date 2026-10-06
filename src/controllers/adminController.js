@@ -5,6 +5,7 @@ const TaskSubmission = require('../models/TaskSubmission');
 const Task = require('../models/Task');
 const Plan = require('../models/Plan');
 const Wallet = require('../models/Wallet');
+const Upi = require('../models/Upi');
 
 // @desc    Get Admin Dashboard Stats
 // @route   GET /api/admin/dashboard
@@ -108,10 +109,18 @@ exports.getUsers = async (req, res, next) => {
     const query = { role: 'user' };
 
     if (search) {
+      const upiMatches = await Upi.find({
+        $or: [
+          { upiId: { $regex: search, $options: 'i' } },
+          { accountHolderName: { $regex: search, $options: 'i' } },
+        ],
+      }).distinct('userId');
+
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phoneNumber: { $regex: search, $options: 'i' } },
+        { _id: { $in: upiMatches } },
       ];
     }
 
@@ -119,6 +128,10 @@ exports.getUsers = async (req, res, next) => {
     const users = await User.find(query)
       .populate('plan')
       .populate('wallet')
+      .populate({
+        path: 'upis',
+        options: { sort: { isPrimary: -1, createdAt: -1 } },
+      })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
@@ -143,7 +156,11 @@ exports.getUserDetails = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
       .populate('plan')
-      .populate('wallet');
+      .populate('wallet')
+      .populate({
+        path: 'upis',
+        options: { sort: { isPrimary: -1, createdAt: -1 } },
+      });
 
     if (!user) {
       return res.status(404).json({
