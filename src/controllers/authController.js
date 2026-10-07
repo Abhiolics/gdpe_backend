@@ -16,6 +16,34 @@ const getAdminEmail = () => {
   return 'keralawins123@gmail.com';
 };
 
+// Helper to generate a unique referral code
+const generateUniqueReferralCode = async () => {
+  let code;
+  let isUnique = false;
+  let attempts = 0;
+  while (!isUnique && attempts < 100) {
+    attempts++;
+    const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+    code = `GDPE${randomSuffix}`;
+    const existing = await User.findOne({ referralCode: code });
+    if (!existing) {
+      isUnique = true;
+    }
+  }
+  return code;
+};
+
+const ensureReferralCode = async (user) => {
+  if (!user.referralCode) {
+    user.referralCode = await generateUniqueReferralCode();
+    await user.save({ validateBeforeSave: false });
+  }
+  return user.referralCode;
+};
+
+exports.generateUniqueReferralCode = generateUniqueReferralCode;
+exports.ensureReferralCode = ensureReferralCode;
+
 // @desc    Register user
 // @route   POST /api/auth/register or /auth/register
 // @access  Public
@@ -42,6 +70,24 @@ exports.register = async (req, res, next) => {
       });
     }
 
+    // Process referral code if provided
+    const referCodeInput =
+      req.body.referralCode || req.body.referCode || req.body.refCode || req.body.ref;
+    let referredBy = null;
+    let referredByL2 = null;
+
+    if (referCodeInput) {
+      const referrer = await User.findOne({
+        referralCode: referCodeInput.toString().trim().toUpperCase(),
+      });
+      if (referrer) {
+        referredBy = referrer._id;
+        referredByL2 = referrer.referredBy || null;
+      }
+    }
+
+    const referralCode = await generateUniqueReferralCode();
+
     // Create verification token
     const verificationToken = crypto.randomBytes(20).toString('hex');
 
@@ -52,6 +98,9 @@ exports.register = async (req, res, next) => {
       email: email.toLowerCase(),
       password,
       emailVerificationToken: verificationToken,
+      referralCode,
+      referredBy,
+      referredByL2,
     });
 
     // Create user wallet
@@ -66,6 +115,9 @@ exports.register = async (req, res, next) => {
     );
 
     const token = user.getSignedJwtToken();
+    const host = req.headers.host || 'gdpe.info';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const referralLink = `${protocol}://${host}/ref/${user.referralCode}`;
 
     res.status(201).json({
       success: true,
@@ -78,6 +130,8 @@ exports.register = async (req, res, next) => {
         phoneNumber: user.phoneNumber,
         role: user.role,
         isEmailVerified: user.isEmailVerified,
+        referralCode: user.referralCode,
+        referralLink,
         verificationToken,
         wallet: {
           balance: wallet.balance,
@@ -424,6 +478,8 @@ exports.adminVerifyOtp = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).populate('plan');
+    await ensureReferralCode(user);
+
     const wallet = await Wallet.findOne({ user: req.user.id });
     const upis = await Upi.find({ userId: req.user.id }).sort({ isPrimary: -1, createdAt: -1 });
     const primaryUpi = upis.find((u) => u.isPrimary) || upis[0] || null;
@@ -434,6 +490,10 @@ exports.getMe = async (req, res, next) => {
     ]);
     const totalWithdrawn = approvedWithdrawals[0]?.total || 0;
 
+    const host = req.headers.host || 'gdpe.info';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const referralLink = `${protocol}://${host}/ref/${user.referralCode}`;
+
     res.status(200).json({
       success: true,
       data: {
@@ -441,6 +501,8 @@ exports.getMe = async (req, res, next) => {
         fullName: user.fullName,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        referralCode: user.referralCode,
+        referralLink,
         role:
           user.email &&
           user.email.toLowerCase().trim() === getAdminEmail()

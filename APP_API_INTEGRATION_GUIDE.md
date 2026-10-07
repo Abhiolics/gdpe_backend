@@ -892,3 +892,59 @@ export const getFullImageUrl = (path?: string) => {
   return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 ```
+
+---
+
+## 🎁 12. Refer & Earn (Multi-Level Referral System)
+
+### 12.1 Get Refer & Earn Dashboard & Team Breakdown
+- **Method:** `GET`
+- **Path:** `/api/referral/stats` (or `/referral/stats`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "referralCode": "GDPEBC1Y7",
+    "referralLink": "https://gdpebackend.vercel.app/ref/GDPEBC1Y7",
+    "totalCommission": 150.00,
+    "todayCommission": 30.00,
+    "yesterdayCommission": 20.00,
+    "totalMembers": 5,
+    "level1Count": 3,
+    "level2Count": 2,
+    "totalTeamDeposit": 5000.00,
+    "level1TeamDeposit": 3000.00,
+    "level2TeamDeposit": 2000.00,
+    "teamMembers": [
+      {
+        "id": "6ac6156116d1a255716559ae",
+        "fullName": "Rahul Sharma",
+        "email": "rahul@example.com",
+        "phoneNumber": "9876543210",
+        "level": 1,
+        "totalDeposit": 1000,
+        "createdAt": "2026-10-07T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### 12.2 Register with Referral Code
+- **Method:** `POST`
+- **Path:** `/api/auth/register`
+- **Body Parameters:** Include `referralCode` (or `referCode` / `ref`)
+```json
+{
+  "fullName": "John Doe",
+  "phoneNumber": "9876543210",
+  "email": "john@example.com",
+  "password": "password123",
+  "referralCode": "GDPEBC1Y7"
+}
+```
+
+---
+

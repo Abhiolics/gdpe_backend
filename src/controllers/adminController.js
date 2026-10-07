@@ -128,6 +128,7 @@ exports.getUsers = async (req, res, next) => {
     const users = await User.find(query)
       .populate('plan')
       .populate('wallet')
+      .populate('referredBy', 'fullName email referralCode')
       .populate({
         path: 'upis',
         options: { sort: { isPrimary: -1, createdAt: -1 } },
@@ -157,6 +158,7 @@ exports.getUserDetails = async (req, res, next) => {
     const user = await User.findById(req.params.id)
       .populate('plan')
       .populate('wallet')
+      .populate('referredBy', 'fullName email referralCode')
       .populate({
         path: 'upis',
         options: { sort: { isPrimary: -1, createdAt: -1 } },
