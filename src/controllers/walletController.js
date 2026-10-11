@@ -62,7 +62,11 @@ exports.getTransactions = async (req, res, next) => {
     const query = { user: req.user.id };
 
     if (type) query.type = type;
-    if (category) query.category = category;
+    if (category) {
+      query.category = category;
+    } else {
+      query.category = { $ne: 'task_reward' };
+    }
 
     const total = await Transaction.countDocuments(query);
     const transactions = await Transaction.find(query)
