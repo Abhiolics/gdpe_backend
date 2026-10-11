@@ -92,10 +92,11 @@ Always call these endpoints on app splash/startup to verify maintenance mode, fo
 
 ---
 
-### 1.2 Get Active Payment Methods (Deposit Bank / UPI QR)
-- **URL:** `GET https://gdpebackend.vercel.app/api/payment-methods`
+### 1.2 Get Active Payment Methods (Deposit Bank / Dynamic Multi-UPI QR)
+- **URL:** `GET https://gdpebackend.vercel.app/api/payment-methods` (or `/api/payment/payment-methods`)
 - **Auth:** Not required (Public)
-- **Use Case:** Display active bank account details and QR code on the Deposit screen so users know where to send money.
+- **Use Case:** Display active bank account details and QR code on the Deposit screen. When admin configures multiple UPIs, backend automatically rotates them round-robin across users/requests.
+- **Query Parameter (Optional):** `?upiId=sample@upi` (Request a specific UPI if needed)
 
 #### Response `200 OK`
 ```json
@@ -103,18 +104,43 @@ Always call these endpoints on app splash/startup to verify maintenance mode, fo
   "success": true,
   "data": {
     "qrCode": {
-      "imageUrl": "https://gdpebackend.vercel.app/uploads/qr-sample.png",
-      "upiId": "gdpepay@upi"
+      "enabled": true,
+      "imageUrl": "https://res.cloudinary.com/.../qr1.png",
+      "upiId": "merchant1@upi",
+      "payeeName": "GDPE Merchant 1"
     },
     "bankAccount": {
+      "enabled": true,
       "accountHolder": "GDPE ENTERPRISE",
       "accountNumber": "919876543210",
       "ifscCode": "PYTM0123456",
-      "bankName": "Paytm Payments Bank"
-    }
+      "bankName": "Paytm Payments Bank",
+      "upiId": "merchant1@upi"
+    },
+    "upis": [
+      {
+        "id": "673f...",
+        "upiId": "merchant1@upi",
+        "payeeName": "GDPE Merchant 1",
+        "imageUrl": "https://res.cloudinary.com/.../qr1.png",
+        "qrCodeUrl": "https://res.cloudinary.com/.../qr1.png"
+      },
+      {
+        "id": "673g...",
+        "upiId": "merchant2@upi",
+        "payeeName": "GDPE Merchant 2",
+        "imageUrl": "https://res.cloudinary.com/.../qr2.png",
+        "qrCodeUrl": "https://res.cloudinary.com/.../qr2.png"
+      }
+    ],
+    "totalActiveUpis": 2
   }
 }
 ```
+
+> **Note on Mobile App Compatibility:**
+> - **Existing App Builds:** App already reads `data.qrCode.upiId` and `data.qrCode.imageUrl`. Because the backend automatically rotates the selected UPI in `data.qrCode`, existing mobile apps will automatically display different UPIs to different users without requiring ANY changes to the app!
+> - **Optional Dropdown:** If the app UI wants to let users manually choose between multiple UPIs, developers can use `data.upis`.
 
 ---
 

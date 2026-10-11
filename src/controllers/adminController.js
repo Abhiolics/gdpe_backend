@@ -6,6 +6,7 @@ const Task = require('../models/Task');
 const Plan = require('../models/Plan');
 const Wallet = require('../models/Wallet');
 const Upi = require('../models/Upi');
+const Transaction = require('../models/Transaction');
 
 // @desc    Get Admin Dashboard Stats
 // @route   GET /api/admin/dashboard
@@ -137,13 +138,106 @@ exports.getUsers = async (req, res, next) => {
       .skip((page - 1) * limit)
       .limit(Number(limit));
 
+    const userIds = users.map((u) => u._id);
+
+    // Aggregate completed referral commissions
+    const commissionStats = await Transaction.aggregate([
+      {
+        $match: {
+          user: { $in: userIds },
+          category: 'referral_bonus',
+          status: 'completed',
+        },
+      },
+      {
+        $group: {
+          _id: '$user',
+          totalCommission: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    // Aggregate completed transactions (credited & debited)
+    const transactionStats = await Transaction.aggregate([
+      {
+        $match: {
+          user: { $in: userIds },
+          status: 'completed',
+        },
+      },
+      {
+        $group: {
+          _id: { user: '$user', type: '$type' },
+          total: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    const commMap = {};
+    commissionStats.forEach((c) => {
+      commMap[c._id.toString()] = Number((c.totalCommission || 0).toFixed(2));
+    });
+
+    const creditMap = {};
+    const debitMap = {};
+    transactionStats.forEach((t) => {
+      const uId = t._id.user.toString();
+      if (t._id.type === 'credit') {
+        creditMap[uId] = Number((t.total || 0).toFixed(2));
+      } else if (t._id.type === 'debit') {
+        debitMap[uId] = Number((t.total || 0).toFixed(2));
+      }
+    });
+
+    const formattedUsers = users.map((u) => {
+      const uObj = u.toObject();
+      const uId = u._id.toString();
+      const currentBalance = Number((u.wallet?.balance || 0).toFixed(2));
+      const rawCommission = commMap[uId] || 0;
+
+      // Breakdown: amount + commission = total
+      const commission = Number(Math.min(rawCommission, currentBalance).toFixed(2));
+      const amount = Number(Math.max(0, currentBalance - commission).toFixed(2));
+      const total = Number((amount + commission).toFixed(2));
+
+      const totalCredited = creditMap[uId] || 0;
+      const totalDebited = debitMap[uId] || 0;
+
+      if (uObj.wallet) {
+        uObj.wallet.amount = amount;
+        uObj.wallet.commission = commission;
+        uObj.wallet.total = total;
+        uObj.wallet.totalCommission = rawCommission;
+        uObj.wallet.totalCredited = totalCredited;
+        uObj.wallet.totalDebited = totalDebited;
+      } else {
+        uObj.wallet = {
+          balance: 0,
+          pendingBalance: 0,
+          amount: 0,
+          commission: 0,
+          total: 0,
+          totalCommission: rawCommission,
+          totalCredited,
+          totalDebited,
+        };
+      }
+
+      uObj.amount = amount;
+      uObj.commission = commission;
+      uObj.total = total;
+      uObj.totalCommission = rawCommission;
+
+      return uObj;
+    });
+
     res.status(200).json({
       success: true,
-      count: users.length,
+      count: formattedUsers.length,
       total,
       page: Number(page),
       pages: Math.ceil(total / limit),
-      data: users,
+      data: formattedUsers,
     });
   } catch (error) {
     next(error);
@@ -171,9 +265,74 @@ exports.getUserDetails = async (req, res, next) => {
       });
     }
 
+    const rawCommissionAgg = await Transaction.aggregate([
+      {
+        $match: {
+          user: user._id,
+          category: 'referral_bonus',
+          status: 'completed',
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    const rawCommission = Number((rawCommissionAgg[0]?.total || 0).toFixed(2));
+
+    const txStats = await Transaction.aggregate([
+      {
+        $match: {
+          user: user._id,
+          status: 'completed',
+        },
+      },
+      {
+        $group: {
+          _id: '$type',
+          total: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    let totalCredited = 0;
+    let totalDebited = 0;
+    txStats.forEach((t) => {
+      if (t._id === 'credit') totalCredited = Number((t.total || 0).toFixed(2));
+      if (t._id === 'debit') totalDebited = Number((t.total || 0).toFixed(2));
+    });
+
+    const uObj = user.toObject();
+    const currentBalance = Number((user.wallet?.balance || 0).toFixed(2));
+    const commission = Number(Math.min(rawCommission, currentBalance).toFixed(2));
+    const amount = Number(Math.max(0, currentBalance - commission).toFixed(2));
+    const total = Number((amount + commission).toFixed(2));
+
+    if (uObj.wallet) {
+      uObj.wallet.amount = amount;
+      uObj.wallet.commission = commission;
+      uObj.wallet.total = total;
+      uObj.wallet.totalCommission = rawCommission;
+      uObj.wallet.totalCredited = totalCredited;
+      uObj.wallet.totalDebited = totalDebited;
+    } else {
+      uObj.wallet = {
+        balance: 0,
+        pendingBalance: 0,
+        amount: 0,
+        commission: 0,
+        total: 0,
+        totalCommission: rawCommission,
+        totalCredited,
+        totalDebited,
+      };
+    }
+
+    uObj.amount = amount;
+    uObj.commission = commission;
+    uObj.total = total;
+    uObj.totalCommission = rawCommission;
+
     res.status(200).json({
       success: true,
-      data: user,
+      data: uObj,
     });
   } catch (error) {
     next(error);

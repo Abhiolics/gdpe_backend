@@ -322,6 +322,9 @@ exports.enablePaymentMethod = async (req, res, next) => {
   }
 };
 
+// Round-robin counter for rotating active UPIs across requests
+let upiRotationCounter = 0;
+
 // @desc    Get active payment methods for mobile clients and public apps
 // @route   GET /api/payment/payment-methods or /api/payment-methods
 // @access  Public
@@ -330,8 +333,8 @@ exports.getPaymentMethodsPublic = async (req, res, next) => {
     const settings = await Setting.getSettings();
     await ensureInitialMethods(settings);
 
-    const activeUpi = await PaymentMethod.findOne({ type: 'upi', enabled: true }).sort({
-      updatedAt: -1,
+    // Fetch all active, enabled UPI methods
+    const activeUpis = await PaymentMethod.find({ type: 'upi', enabled: true }).sort({
       createdAt: -1,
     });
 
@@ -343,6 +346,22 @@ exports.getPaymentMethodsPublic = async (req, res, next) => {
     const isUpiEnabled = settings.isUpiEnabled ?? settings.paymentMethods?.qrCode?.enabled ?? true;
     const isBankEnabled = settings.isBankEnabled ?? settings.paymentMethods?.bankAccount?.enabled ?? true;
 
+    // Multi-UPI Rotation:
+    // If admin added multiple enabled UPIs, rotate through them round-robin
+    // so different users / subsequent requests see different UPIs.
+    let activeUpi = null;
+    if (activeUpis.length > 0) {
+      if (req.query.upiId) {
+        const queryUpi = req.query.upiId.trim().toLowerCase();
+        activeUpi = activeUpis.find((u) => u.upiId.toLowerCase() === queryUpi) || null;
+      }
+      if (!activeUpi) {
+        const selectedIndex = upiRotationCounter % activeUpis.length;
+        upiRotationCounter = (upiRotationCounter + 1) % 1000000;
+        activeUpi = activeUpis[selectedIndex];
+      }
+    }
+
     const upiId = activeUpi?.upiId || settings.paymentMethods?.qrCode?.upiId || settings.paymentMethods?.bankAccount?.upiId || '';
 
     const publicData = {
@@ -350,6 +369,7 @@ exports.getPaymentMethodsPublic = async (req, res, next) => {
         enabled: isUpiEnabled,
         imageUrl: activeUpi?.qrCodeUrl || settings.paymentMethods?.qrCode?.imageUrl || '',
         upiId,
+        payeeName: activeUpi?.upiPayeeName || '',
       },
       bankAccount: {
         enabled: isBankEnabled,
@@ -359,6 +379,15 @@ exports.getPaymentMethodsPublic = async (req, res, next) => {
         ifscCode: activeBank?.ifscCode || settings.paymentMethods?.bankAccount?.ifscCode || '',
         upiId,
       },
+      // Array of all active configured UPIs for clients that display multiple choices
+      upis: activeUpis.map((u) => ({
+        id: u._id,
+        upiId: u.upiId,
+        payeeName: u.upiPayeeName || '',
+        imageUrl: u.qrCodeUrl || '',
+        qrCodeUrl: u.qrCodeUrl || '',
+      })),
+      totalActiveUpis: activeUpis.length,
     };
 
     res.status(200).json({
