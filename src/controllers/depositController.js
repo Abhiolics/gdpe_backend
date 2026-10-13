@@ -4,16 +4,37 @@ const { adjustWalletBalance, pushNotification } = require('../utils/walletHelper
 const upload = require('../middlewares/uploadMiddleware');
 
 /**
- * Distribute multi-level referral commissions upon successful deposit/order approval
- * Level 1 Referrer: 2%
- * Level 2 Referrer: 1%
+ * Distribute self-cashback and multi-level referral commissions upon successful deposit/order approval:
+ * - Buyer (Self): 4% Cashback (awarded whether referred or not)
+ * - Level 1 Referrer: 2% Commission
+ * - Level 2 Referrer: 1% Commission
  */
 const distributeReferralCommission = async (buyerId, amount, referenceId, transactionRef) => {
   try {
     const buyer = await User.findById(buyerId);
     if (!buyer) return;
 
-    // Level 1 Referrer (2% Commission)
+    // 1. Buyer Self Cashback (4% Cashback - awarded whether referred or not)
+    const selfCashback = Number((amount * 0.04).toFixed(2));
+    if (selfCashback > 0) {
+      await adjustWalletBalance({
+        userId: buyer._id,
+        amount: selfCashback,
+        type: 'credit',
+        category: 'cashback',
+        description: `Order cashback (4%) (Deposit #${transactionRef})`,
+        referenceId,
+      });
+
+      await pushNotification({
+        userId: buyer._id,
+        title: 'Order Cashback Received! 🎉',
+        message: `You earned ₹${selfCashback} (4% cashback) on your order of ₹${amount}.`,
+        type: 'success',
+      });
+    }
+
+    // 2. Level 1 Referrer (2% Commission)
     if (buyer.referredBy) {
       const l1Commission = Number((amount * 0.02).toFixed(2));
       if (l1Commission > 0) {
@@ -35,7 +56,7 @@ const distributeReferralCommission = async (buyerId, amount, referenceId, transa
       }
     }
 
-    // Level 2 Referrer (1% Commission)
+    // 3. Level 2 Referrer (1% Commission)
     if (buyer.referredByL2) {
       const l2Commission = Number((amount * 0.01).toFixed(2));
       if (l2Commission > 0) {
@@ -57,7 +78,7 @@ const distributeReferralCommission = async (buyerId, amount, referenceId, transa
       }
     }
   } catch (err) {
-    console.error('[Referral Commission] Error distributing commission:', err.message);
+    console.error('[Commission/Cashback] Error distributing commission/cashback:', err.message);
   }
 };
 
@@ -220,7 +241,7 @@ exports.approveDeposit = async (req, res, next) => {
       referenceId: deposit._id,
     });
 
-    // Distribute 2% Level 1 and 1% Level 2 referral commissions
+    // Distribute 4% self cashback to buyer and 2% Level 1 & 1% Level 2 referral commissions
     await distributeReferralCommission(deposit.user, deposit.amount, deposit._id, deposit.transactionRef);
 
     await pushNotification({

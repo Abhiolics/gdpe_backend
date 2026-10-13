@@ -31,6 +31,7 @@ const transactionSchema = new mongoose.Schema(
         'admin_adjustment',
         'plan_purchase',
         'referral_bonus',
+        'cashback',
         'other',
       ],
       default: 'other',

@@ -972,5 +972,16 @@ export const getFullImageUrl = (path?: string) => {
 }
 ```
 
+### 12.3 Cashback & Referral Commission Structure
+When any user places an order/deposit and Admin approves it:
+- **Buyer (Self):** Earns **4% Cashback** credited directly to their wallet (`category: 'cashback'`). Awarded to every buyer whether referred or not.
+- **Level 1 Referrer:** Earns **2% Commission** (`category: 'referral_bonus'`).
+- **Level 2 Referrer:** Earns **1% Commission** (`category: 'referral_bonus'`).
+
+**Example (₹1,000 Order Approved):**
+- Buyer Wallet Balance: +₹1,000 (Deposit) + **₹40 (4% Cashback)** = ₹1,040
+- Level 1 Referrer Wallet Balance: +**₹20 (2% Commission)**
+- Level 2 Referrer Wallet Balance: +**₹10 (1% Commission)**
+
 ---
 

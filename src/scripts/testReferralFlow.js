@@ -93,24 +93,27 @@ async function runTest() {
       referenceId: deposit._id,
     });
 
-    // Distribute Commissions: L1 gets 2% (₹20), L2 gets 1% (₹10)
+    // Distribute Cashback & Commissions:
+    // - User C (Self) gets 4% cashback (₹40)
+    // - User B (L1) gets 2% commission (₹20)
+    // - User A (L2) gets 1% commission (₹10)
     await distributeReferralCommission(userC._id, depositAmount, deposit._id, deposit.transactionRef);
-    console.log('✅ Referral commission distribution triggered!');
+    console.log('✅ Cashback & referral commission distribution triggered!');
 
     // 5. Verify Wallets
     const walletA = await Wallet.findOne({ user: userA._id });
     const walletB = await Wallet.findOne({ user: userB._id });
     const walletC = await Wallet.findOne({ user: userC._id });
 
-    console.log('\n--- 💰 WALLET BALANCES AFTER COMMISSION ---');
-    console.log(`User C (Depositor): ₹${walletC.balance}`);
+    console.log('\n--- 💰 WALLET BALANCES AFTER CASHBACK & COMMISSION ---');
+    console.log(`User C (Depositor/Self - ₹1000 deposit + 4% cashback = ₹1040): ₹${walletC.balance}`);
     console.log(`User B (Level 1 Referrer - expected 2% = ₹20): ₹${walletB.balance}`);
     console.log(`User A (Level 2 Referrer - expected 1% = ₹10): ₹${walletA.balance}`);
 
-    if (walletB.balance === 20 && walletA.balance === 10) {
-      console.log('🎉 PERFECT! Multi-level commission (2% L1, 1% L2) calculated and credited accurately!');
+    if (walletC.balance === 1040 && walletB.balance === 20 && walletA.balance === 10) {
+      console.log('🎉 PERFECT! 4% self cashback + multi-level commission (2% L1, 1% L2) calculated and credited accurately!');
     } else {
-      console.error(`❌ Mismatch! Wallet B: ${walletB.balance}, Wallet A: ${walletA.balance}`);
+      console.error(`❌ Mismatch! Wallet C: ${walletC.balance}, Wallet B: ${walletB.balance}, Wallet A: ${walletA.balance}`);
     }
 
     // Cleanup test records
