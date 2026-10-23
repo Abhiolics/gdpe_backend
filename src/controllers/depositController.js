@@ -5,7 +5,7 @@ const upload = require('../middlewares/uploadMiddleware');
 
 /**
  * Distribute self-cashback and multi-level referral commissions upon successful deposit/order approval:
- * - Buyer (Self): 4% Cashback (awarded whether referred or not)
+ * - Buyer (Self): 4.5% Cashback (awarded whether referred or not)
  * - Level 1 Referrer: 2% Commission
  * - Level 2 Referrer: 1% Commission
  */
@@ -14,22 +14,22 @@ const distributeReferralCommission = async (buyerId, amount, referenceId, transa
     const buyer = await User.findById(buyerId);
     if (!buyer) return;
 
-    // 1. Buyer Self Cashback (4% Cashback - awarded whether referred or not)
-    const selfCashback = Number((amount * 0.04).toFixed(2));
+    // 1. Buyer Self Cashback (4.5% Cashback - awarded whether referred or not)
+    const selfCashback = Number((amount * 0.045).toFixed(2));
     if (selfCashback > 0) {
       await adjustWalletBalance({
         userId: buyer._id,
         amount: selfCashback,
         type: 'credit',
         category: 'cashback',
-        description: `Order cashback (4%) (Deposit #${transactionRef})`,
+        description: `Order cashback (4.5%) (Deposit #${transactionRef})`,
         referenceId,
       });
 
       await pushNotification({
         userId: buyer._id,
         title: 'Order Cashback Received! 🎉',
-        message: `You earned ₹${selfCashback} (4% cashback) on your order of ₹${amount}.`,
+        message: `You earned ₹${selfCashback} (4.5% cashback) on your order of ₹${amount}.`,
         type: 'success',
       });
     }
@@ -241,7 +241,7 @@ exports.approveDeposit = async (req, res, next) => {
       referenceId: deposit._id,
     });
 
-    // Distribute 4% self cashback to buyer and 2% Level 1 & 1% Level 2 referral commissions
+    // Distribute 4.5% self cashback to buyer and 2% Level 1 & 1% Level 2 referral commissions
     await distributeReferralCommission(deposit.user, deposit.amount, deposit._id, deposit.transactionRef);
 
     await pushNotification({
